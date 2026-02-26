@@ -11,6 +11,16 @@ const STROKE = 0.4;
 export function DecorationPatterns() {
   return (
     <defs>
+      {/* Smooth / undecorated (plain fill so band is visible) */}
+      <pattern
+        id="pattern-smooth"
+        patternUnits="userSpaceOnUse"
+        width={PATTERN_SIZE}
+        height={PATTERN_SIZE}
+      >
+        <rect width={PATTERN_SIZE} height={PATTERN_SIZE} fill="#fff" />
+      </pattern>
+
       {/* Zigzag / chevron */}
       <pattern
         id="pattern-zigzag"
@@ -166,6 +176,5 @@ export function DecorationPatterns() {
 }
 
 export function patternIdForType(type: DecorationType): string | null {
-  if (type === 'smooth') return null;
   return `pattern-${type}`;
 }

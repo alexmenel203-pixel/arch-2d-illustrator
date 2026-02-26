@@ -13,7 +13,6 @@ import type {
   DecorationType,
   VesselForm,
 } from '../types/find';
-import FindIllustration from '../illustration/FindIllustration';
 import { EditableProfilePreview } from './EditableProfilePreview';
 import { createDefaultSpec } from '../data/defaultSpec';
 import { exportSvg, exportPng } from '../utils/exportIllustration';
@@ -141,12 +140,19 @@ export function FindEditor({ initialSpec, onReset, onSave }: FindEditorProps) {
         img.onerror = () => reject(new Error('Failed to load image'));
         img.src = photoPreviewUrl;
       });
-      const profile = extractProfileFromImage(img, extractOptions);
+      const { profile, decorationBands } = extractProfileFromImage(img, extractOptions);
       if (profile.length < 2) {
-        setPhotoError('Could not detect a clear profile. Try a side-view photo on a plain background.');
+        setPhotoError(
+          'Could not detect a clear profile. Tips:\n' +
+          '• Use a side-view photo with the vessel clearly separated from background\n' +
+          '• Try adjusting: Object = Dark/Light, Blur level, Threshold bias (±)\n' +
+          '• Enable Cleanup (level 1-2) for decorated vessels or noisy images\n' +
+          '• Enable Contrast stretch for low-contrast images\n' +
+          '• For dark backgrounds, the extractor should auto-detect, but you can force "Object = Light"'
+        );
         return;
       }
-      setSpec((s) => ({ ...s, profile }));
+      setSpec((s) => ({ ...s, profile, decorationBands }));
       setImportMessage('Profile extracted. Adjust points and add decoration as needed.');
     } catch (err) {
       setPhotoError(err instanceof Error ? err.message : 'Extraction failed.');
@@ -217,13 +223,6 @@ export function FindEditor({ initialSpec, onReset, onSave }: FindEditorProps) {
   }, []);
 
   const handleList: HandleSpec[] = spec.handles ?? (spec.handle ? [spec.handle] : []);
-
-  const setHandles = useCallback(
-    (handles: HandleSpec[]) => {
-      setSpec((s) => ({ ...s, handles: handles.length ? handles : undefined, handle: undefined }));
-    },
-    []
-  );
 
   const updateHandle = useCallback((index: number, patch: Partial<HandleSpec>) => {
     setSpec((s) => {
@@ -412,17 +411,6 @@ export function FindEditor({ initialSpec, onReset, onSave }: FindEditorProps) {
               </select>
             </label>
             <label className="flex items-center gap-1">
-              Smooth:
-              <input
-                type="number"
-                min={0}
-                max={5}
-                value={extractOptions.smoothing ?? 2}
-                onChange={(e) => setExtractOptions((o) => ({ ...o, smoothing: Math.max(0, Math.min(5, Number(e.target.value) || 0)) }))}
-                className="w-8 rounded border border-stone-300 px-0.5 py-0.5 text-xs"
-              />
-            </label>
-            <label className="flex items-center gap-1">
               Object:
               <select
                 value={extractOptions.invert === undefined ? 'auto' : extractOptions.invert ? 'dark' : 'light'}
@@ -436,6 +424,49 @@ export function FindEditor({ initialSpec, onReset, onSave }: FindEditorProps) {
                 <option value="dark">Dark</option>
                 <option value="light">Light</option>
               </select>
+            </label>
+            <label className="flex items-center gap-1" title="Shift binarization threshold when object isn't clearly separated">
+              Threshold:
+              <input
+                type="number"
+                min={-30}
+                max={30}
+                value={extractOptions.thresholdBias ?? 0}
+                onChange={(e) => setExtractOptions((o) => ({ ...o, thresholdBias: Math.max(-30, Math.min(30, Number(e.target.value) || 0)) }))}
+                className="w-10 rounded border border-stone-300 px-0.5 py-0.5 text-xs"
+              />
+            </label>
+            <label className="flex items-center gap-1" title="Fill holes and remove specks (helps reflective or noisy photos)">
+              Cleanup:
+              <select
+                value={extractOptions.cleanup ?? 0}
+                onChange={(e) => setExtractOptions((o) => ({ ...o, cleanup: Number(e.target.value) as 0 | 1 | 2 }))}
+                className="rounded border border-stone-300 px-1 py-0.5 text-xs"
+              >
+                <option value={0}>Off</option>
+                <option value={1}>Light</option>
+                <option value={2}>Medium</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-1">
+              <input
+                type="checkbox"
+                checked={extractOptions.contrastStretch ?? false}
+                onChange={(e) => setExtractOptions((o) => ({ ...o, contrastStretch: e.target.checked }))}
+                className="rounded border-stone-300"
+              />
+              <span title="Stretch contrast (helps low-contrast images)">Contrast</span>
+            </label>
+            <label className="flex items-center gap-1">
+              Smooth:
+              <input
+                type="number"
+                min={0}
+                max={5}
+                value={extractOptions.smoothing ?? 2}
+                onChange={(e) => setExtractOptions((o) => ({ ...o, smoothing: Math.max(0, Math.min(5, Number(e.target.value) || 0)) }))}
+                className="w-8 rounded border border-stone-300 px-0.5 py-0.5 text-xs"
+              />
             </label>
             <label className="flex items-center gap-1">
               Points:
